@@ -104,6 +104,7 @@ interface QrSnapshot {
     s?: string
     n?: string
     p: Priority
+    z?: 1
   }>
   d?: string[]
   s?: SessionTemplate[]
@@ -145,6 +146,7 @@ export function createQrSnapshot(state: UserState): QrSnapshot {
       ...(task.start ? { s: task.start } : {}),
       ...(task.end ? { n: task.end } : {}),
       p: task.priority,
+      ...(task.done ? { z: 1 as const } : {}),
     }))
   const customTopics = state.customTopics.map((topic) => ({
     i: topic.id,
@@ -314,7 +316,7 @@ export function qrSnapshotToState(raw: unknown): UserState | null {
         ...(typeof value.d === 'string' ? { due: value.d } : {}),
         ...(typeof value.s === 'string' ? { start: value.s } : {}),
         ...(typeof value.n === 'string' ? { end: value.n } : {}),
-        done: false,
+        done: value.z === 1,
         priority: (value.p === 1 || value.p === 3 ? value.p : 2) as Priority,
         note: '',
         createdAt: 0,

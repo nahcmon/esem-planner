@@ -57,6 +57,26 @@ describe('share payload', () => {
     expect(merged.tasks.find((task) => task.id === local.tasks[0].id)?.title).toBe('Lokaler Titel')
   })
 
+  it('keeps custom task completion in a QR snapshot', () => {
+    const state = createSeedState()
+    state.tasks.push({
+      id: 'task-custom-qr',
+      componentId: 'math1',
+      title: 'Custom QR task',
+      kind: 'study',
+      done: true,
+      priority: 1,
+      note: 'secret note',
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    const decoded = decodeShareCode(encodePayload(createQrPayload(state)))
+    const sparse = qrSnapshotToState(decoded?.state)
+    const task = sparse?.tasks.find((item) => item.id === 'task-custom-qr')
+    expect(task?.done).toBe(true)
+    expect(task?.note).toBe('')
+  })
+
   it('removes free-text notes in the compact variant', () => {
     const state = createSeedState()
     const compact = compactState(state)
