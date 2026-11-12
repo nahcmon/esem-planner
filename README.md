@@ -6,8 +6,9 @@ A local-first study planner for the B.Sc. **Energy Systems Engineering and Manag
 
 ## Features
 
-- **Today** — next session, daily timeline, open tasks, focus topics.
+- **Today** — exam focus with GPA and open assessments, next session, due tasks, daily timeline, focus topics.
 - **Week** — week grid and agenda views, filters, moved/cancelled sessions, quick rescheduling.
+- **Grades** — ECTS-weighted GPA, earned and graded credits, semester results, grade distribution and latest results.
 - **Modules** — all 7 semesters and 32 modules with ECTS, courses, topics, notes, literature and exam links.
 - **Progress** — overall and semester ECTS, study-time goals, streak, 8-week chart, per-course progress and priority-sorted open topics.
 - **Exams** — countdown, registration/withdrawal windows, editable dates, statuses, grades and per-exam checklists.
@@ -31,7 +32,7 @@ The curriculum data is based on public programme documents:
 - **ESEM module handbook** (8 September 2025)
 - **HHN academic calendar WS 2026/27** — lecture period 28 Sep 2026 – 22 Jan 2027, exam period 28 Jan – 18 Feb 2027, exam registration 26 Oct – 6 Nov 2026, withdrawal from 30 Nov 2026.
 
-Exact exam dates are published on **22 December 2026**, so they start empty and are editable. Weekly course times are not published as structured data; the starter schedule is a realistic, fully editable example. The Spanish slot is fixed to **Wednesday 15:30–17:00**, and online Physics is marked as frequently rescheduled.
+Exact exam dates are published on **22 December 2026**, so they start empty and are editable. The weekly timetable follows the official ESEM first-semester schedule with rooms **KE104**, **KE012** and **KC135**. The Spanish slot is fixed to **Wednesday 15:30–17:00**, and online Physics is marked as frequently rescheduled. Every session remains editable.
 
 This is an unofficial student project and is not affiliated with Hochschule Heilbronn. Always verify deadlines, rooms and exam dates in StarPlan and official programme documents.
 

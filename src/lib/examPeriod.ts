@@ -1,0 +1,3 @@
+export const EXAM_PERIOD_START = '2027-01-28'
+export const EXAM_PERIOD_END = '2027-02-18'
+export const EXAM_DATES_PUBLISHED = '2026-12-22'

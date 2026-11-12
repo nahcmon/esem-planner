@@ -1,10 +1,10 @@
 import {
   ArrowRight,
+  Award,
   BookOpen,
   CalendarPlus,
   Check,
   ChevronRight,
-  Clock,
   Coffee,
   Flame,
   GraduationCap,
@@ -22,6 +22,7 @@ import { useT } from '../lib/useT'
 import { useNow } from '../lib/useNow'
 import { cn } from '../lib/cn'
 import {
+  daysUntil,
   formatDate,
   formatDuration,
   formatHours,
@@ -35,6 +36,10 @@ import {
 import {
   allTopicRows,
   currentStreak,
+  examChecklistProgress,
+  formatGrade,
+  gradeStats,
+  nextExam,
   occurrencesForDate,
   sessionDone,
   sortTopics,
@@ -43,6 +48,7 @@ import {
   weekStudyStats,
   weekdayNumber,
 } from '../lib/planner'
+import { EXAM_PERIOD_START } from '../lib/examPeriod'
 import { componentFullTitle, componentTitle, taskTitle } from '../lib/display'
 import { ACCENTS, PRIORITY_COLORS } from '../lib/accents'
 import { SESSION_KIND_KEY, TASK_KIND_KEY, TOPIC_STATUS_KEY } from '../lib/labels'
@@ -71,6 +77,7 @@ export function TodayPage() {
   const upcoming = tasksDueSoon(state, 6)
   const weekStats = weekStudyStats(state, monday)
   const streak = currentStreak(state)
+  const gradeOverview = gradeStats(state, state.settings.currentSemester)
   const week = semesterWeek()
   const goal = state.settings.weeklyGoalMinutes
   const goalProgress = goal ? weekStats.doneMinutes / goal : 0
@@ -139,9 +146,9 @@ export function TodayPage() {
               <span className="h-1.5 w-1.5 rounded-full bg-accent" />
               {t('today.semesterWeek', { week, total: 17 })}
             </Badge>
-            <Badge>
-              <Clock size={10} />
-              {t('today.lecturePeriod')}
+            <Badge tone={gradeOverview.openExams ? 'warn' : 'accent'}>
+              <GraduationCap size={10} />
+              {t('grades.openExams')}: {gradeOverview.openExams}
             </Badge>
             <Badge tone="muted">
               <span className="h-1 w-1 rounded-full bg-faint" />
@@ -152,7 +159,9 @@ export function TodayPage() {
       />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.58fr)_minmax(310px,0.82fr)]">
-        <div className="min-w-0 space-y-5">
+        <div className="flex min-w-0 flex-col gap-5">
+          <ExamFocusCard />
+
           <NextUpCard
             nextSession={nextSession}
             nextTask={nextTask}
@@ -165,7 +174,7 @@ export function TodayPage() {
             }
           />
 
-          <section className="panel overflow-hidden">
+          <section className="order-4 panel overflow-hidden">
             <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-4 sm:px-5">
               <div>
                 <div className="flex items-center gap-2">
@@ -306,7 +315,7 @@ export function TodayPage() {
             </div>
           </section>
 
-          <section className="panel p-4 sm:p-5">
+          <section className="order-3 panel p-4 sm:p-5">
             <SectionHeading
               title={t('today.dueToday')}
               hint={`${openTodayTasks.length} ${t('common.open').toLowerCase()}${
@@ -503,15 +512,152 @@ export function TodayPage() {
               {t('today.quickStudy')}
             </button>
             <Link
-              to="/exams"
+              to="/grades"
               className="flex flex-col items-center gap-1.5 rounded-lg px-2 py-2.5 text-[10px] font-medium text-muted transition-colors hover:bg-white/5 hover:text-ink"
             >
-              <GraduationCap size={16} className="text-accent" />
-              {t('common.exams')}
+              <Award size={16} className="text-accent" />
+              {t('nav.grades')}
             </Link>
           </section>
         </aside>
       </div>
+    </div>
+  )
+}
+
+function ExamFocusCard() {
+  const { t, lang } = useT()
+  const state = usePlanner()
+  const openDialog = useUI((store) => store.openDialog)
+  const semester = state.settings.currentSemester
+  const next = nextExam(state, semester)
+  const nextState = next ? state.examStates[next.key] : undefined
+  const check = next ? examChecklistProgress(state, next.key) : null
+  const overall = gradeStats(state)
+  const semesterStats = gradeStats(state, semester)
+  const days = Math.max(0, daysUntil(EXAM_PERIOD_START))
+  const nextDays = nextState?.date ? Math.max(0, daysUntil(nextState.date)) : null
+
+  return (
+    <section className="panel relative overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(520px_240px_at_94%_-14%,rgba(201,247,106,0.12),transparent_72%)]"
+      />
+      <div className="relative p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="eyebrow flex items-center gap-1.5">
+              <Award size={11} className="text-accent" />
+              {t('today.examFocus')}
+            </div>
+            <h2 className="mt-1 text-[16px] font-semibold leading-snug tracking-[-0.02em] text-ink">
+              {next ? next.label[lang] : t('today.examFocusTitle')}
+            </h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-faint">
+              {next
+                ? `${next.moduleTitle[lang]} · ${next.ects} ECTS · ${formatDate(
+                    nextState!.date!,
+                    lang,
+                    'EEE, d. MMM',
+                  )}`
+                : t('today.examFocusHint')}
+            </p>
+          </div>
+          <Badge tone={next ? 'accent' : 'info'}>
+            {next && nextDays !== null
+              ? nextDays === 0
+                ? t('exams.today')
+                : nextDays === 1
+                  ? t('exams.tomorrow')
+                  : t('exams.inDays', { days: nextDays })
+              : days === 0
+                ? t('today.examPeriodToday')
+                : days === 1
+                  ? t('today.examPeriodTomorrow')
+                  : t('today.examPeriodIn', { days })}
+          </Badge>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            {next && check ? (
+              <>
+                <div className="flex items-center justify-between gap-2 text-[10px] text-faint">
+                  <span>{t('today.examPrep')}</span>
+                  <span className="mono">
+                    {check.done}/{check.total}
+                  </span>
+                </div>
+                <ProgressBar
+                  value={check.total ? check.done / check.total : 0}
+                  className="mt-1.5"
+                  height={4}
+                />
+              </>
+            ) : (
+              <p className="text-[11px] leading-relaxed text-faint">
+                {semesterStats.openExams === 1
+                  ? t('today.examFocusBodyOne')
+                  : t('today.examFocusBody', { count: semesterStats.openExams })}
+              </p>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {next ? (
+              <Button
+                variant="soft"
+                size="sm"
+                onClick={() => openDialog({ kind: 'examResult', examKey: next.key })}
+              >
+                <GraduationCap size={13} />
+                {t('exams.setResult')}
+              </Button>
+            ) : null}
+            <Link
+              to="/grades"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface2 px-2.5 text-[12px] font-medium text-ink transition-colors hover:border-line-strong hover:bg-surface3"
+            >
+              {t('today.openGrades')}
+              <ArrowRight size={12} />
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-line/70 pt-3">
+          <FocusMetric label={t('today.average')} value={formatGrade(overall.average, lang)} />
+          <FocusMetric label={t('today.ectsPassed')} value={`${overall.passedEcts}`} />
+          <FocusMetric
+            label={t('today.openExams')}
+            value={`${semesterStats.openExams}`}
+            tone={semesterStats.openExams ? 'warn' : 'default'}
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function FocusMetric({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string
+  value: string
+  tone?: 'default' | 'warn'
+}) {
+  return (
+    <div>
+      <div
+        className={cn(
+          'mono text-[15px] font-semibold leading-none tracking-[-0.03em]',
+          tone === 'warn' ? 'text-amber' : 'text-ink',
+        )}
+      >
+        {value}
+      </div>
+      <div className="mt-1 text-[9px] uppercase tracking-[0.08em] text-faint">{label}</div>
     </div>
   )
 }

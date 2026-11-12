@@ -13,6 +13,7 @@ const ModulesPage = lazy(() =>
 const ProgressPage = lazy(() =>
   import('./pages/Progress').then((module) => ({ default: module.ProgressPage })),
 )
+const GradesPage = lazy(() => import('./pages/Grades').then((module) => ({ default: module.GradesPage })))
 const ExamsPage = lazy(() => import('./pages/Exams').then((module) => ({ default: module.ExamsPage })))
 const SettingsPage = lazy(() =>
   import('./pages/Settings').then((module) => ({ default: module.SettingsPage })),
@@ -70,6 +71,7 @@ export default function App() {
           <Route path="modules" element={<ModulesPage />} />
           <Route path="modules/:moduleId" element={<ModulesPage />} />
           <Route path="progress" element={<ProgressPage />} />
+          <Route path="grades" element={<GradesPage />} />
           <Route path="exams" element={<ExamsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

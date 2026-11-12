@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   AlertCircle,
   ArrowRight,
+  Award,
   CalendarDays,
   CalendarPlus,
   Check,
@@ -22,11 +23,12 @@ import { useUI } from '../ui-store'
 import { useT } from '../lib/useT'
 import { cn } from '../lib/cn'
 import { daysUntil, formatDate, formatDuration } from '../lib/date'
-import { examChecklistProgress } from '../lib/planner'
+import { examChecklistProgress, formatGrade, gradeStats, parseGrade } from '../lib/planner'
+import { EXAM_PERIOD_END, EXAM_PERIOD_START } from '../lib/examPeriod'
 import { EXAM_KIND_KEY, EXAM_STATUS_KEY } from '../lib/labels'
 import { checklistItems } from '../lib/checklist'
 import { ACCENTS } from '../lib/accents'
-import { CURRICULUM, EXAM_DEFS } from '../data/curriculum'
+import { CURRICULUM, EXAM_DEFS, TOTAL_ECTS } from '../data/curriculum'
 import {
   Badge,
   Button,
@@ -41,9 +43,6 @@ import {
   StatTile,
   Textarea,
 } from '../components/ui'
-
-const EXAM_PERIOD_START = '2027-01-28'
-const EXAM_PERIOD_END = '2027-02-18'
 
 type Scope = 'current' | 'all'
 type StatusFilter = 'all' | 'open' | 'passed'
@@ -80,6 +79,8 @@ export function ExamsPage() {
     (sum, module) => sum + module.ects,
     0,
   )
+  const gradeOverview = gradeStats(state, scope === 'all' ? undefined : semester)
+  const ectsTarget = scope === 'all' ? TOTAL_ECTS : semesterEcts
 
   return (
     <div className="page-enter">
@@ -89,6 +90,13 @@ export function ExamsPage() {
         description={t('exams.registrationInfo')}
         actions={
           <>
+            <Link
+              to="/grades"
+              className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-line bg-surface2 px-3.5 text-[13px] font-medium text-ink transition-colors hover:border-line-strong hover:bg-surface3"
+            >
+              <Award size={15} />
+              {t('exams.gradeOverview')}
+            </Link>
             <Link
               to="/week"
               className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-line bg-surface2 px-3.5 text-[13px] font-medium text-ink transition-colors hover:border-line-strong hover:bg-surface3"
@@ -176,33 +184,44 @@ export function ExamsPage() {
         </div>
       </section>
 
-      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+        <StatTile
+          label={t('exams.gradeAverage')}
+          value={formatGrade(gradeOverview.average, lang)}
+          sub={
+            gradeOverview.gradedExams
+              ? t('exams.gradeWeighted')
+              : t('exams.noGradeYet')
+          }
+          color={ACCENTS.blue.hex}
+          icon={<Award size={14} />}
+        />
+        <StatTile
+          label={t('grades.ectsPassed')}
+          value={gradeOverview.passedEcts}
+          sub={`/ ${ectsTarget} ECTS`}
+          color={ACCENTS.lime.hex}
+          icon={<CheckCircle2 size={14} />}
+        />
         <StatTile
           label={t('exams.thisSemester')}
           value={`${passed}/${exams.length}`}
           sub={t('exams.passedCount', { count: passed })}
-          color={ACCENTS.lime.hex}
-          icon={<CheckCircle2 size={14} />}
+          color={ACCENTS.teal.hex}
+          icon={<ClipboardCheck size={14} />}
         />
         <StatTile
           label={t('exam.registered')}
           value={registered}
           sub={t('exams.openCount', { count: exams.length - passed })}
-          color={ACCENTS.blue.hex}
+          color={ACCENTS.amber.hex}
           icon={<ClipboardCheck size={14} />}
-        />
-        <StatTile
-          label={t('common.exams')}
-          value={exams.length}
-          sub={`${semesterEcts} ECTS · ${t('common.semester')} ${semester}`}
-          color={ACCENTS.teal.hex}
-          icon={<GraduationCap size={14} />}
         />
         <StatTile
           label={t('exams.countdownLabel')}
           value={countdown}
           sub={t('exams.days')}
-          color={ACCENTS.amber.hex}
+          color={ACCENTS.rose.hex}
           icon={<Clock size={14} />}
         />
       </div>
@@ -319,6 +338,7 @@ function ExamCard({
   const [note, setNote] = useState(examState?.note ?? '')
 
   const status = examState?.status ?? 'planned'
+  const grade = parseGrade(examState?.grade)
   const check = examChecklistProgress(
     usePlanner.getState(),
     exam.key,
@@ -400,6 +420,11 @@ function ExamCard({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          {grade !== null ? (
+            <Badge tone={status === 'failed' ? 'danger' : 'accent'}>
+              {t('exam.grade')} {formatGrade(grade, lang)}
+            </Badge>
+          ) : null}
           <Badge tone={STATUS_TONE[status]}>{t(EXAM_STATUS_KEY[status])}</Badge>
           <Button
             variant="secondary"
@@ -542,7 +567,7 @@ function ExamCard({
                       exam.key,
                       status === 'passed' ? 'planned' : 'passed',
                       exam.kind,
-                      status === 'passed' ? undefined : examState?.grade,
+                      undefined,
                     )
                   }
                 >
@@ -553,7 +578,7 @@ function ExamCard({
                   variant="ghost"
                   size="sm"
                   className="text-rose"
-                  onClick={() => setExamStatus(exam.key, 'failed', exam.kind, examState?.grade)}
+                  onClick={() => setExamStatus(exam.key, 'failed', exam.kind, undefined)}
                 >
                   <AlertCircle size={13} />
                   {t('exams.markFailed')}

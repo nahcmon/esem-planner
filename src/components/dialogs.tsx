@@ -36,7 +36,7 @@ import {
   todayISO,
   weekdayLong,
 } from '../lib/date'
-import { allTopicRows, occurrenceKey } from '../lib/planner'
+import { allTopicRows, occurrenceKey, parseGrade } from '../lib/planner'
 import {
   createPayload,
   decodeShareCode,
@@ -1189,10 +1189,15 @@ function ExamResultDialog({ examKey }: { examKey: string }) {
   const setExamStatus = usePlanner((state) => state.setExamStatus)
   const [status, setStatus] = useState<ExamStatus>(examState?.status ?? 'planned')
   const [grade, setGrade] = useState(examState?.grade ?? '')
+  const parsedGrade = parseGrade(grade)
+  const gradeInvalid = grade.trim().length > 0 && parsedGrade === null
+  const passInvalid = status === 'passed' && parsedGrade !== null && parsedGrade > 4
+  const canSave = !gradeInvalid && !passInvalid
 
   if (!exam) return null
 
   const save = () => {
+    if (!canSave) return
     setExamStatus(examKey, status, exam.kind, grade.trim() || undefined)
     toast('toast.saved', undefined, 'success')
     closeDialog()
@@ -1217,13 +1222,21 @@ function ExamResultDialog({ examKey }: { examKey: string }) {
           </Select>
         </Field>
         {status === 'passed' || status === 'failed' ? (
-          <Field label={t('exams.resultGrade')} hint={t('exam.grade')}>
+          <Field label={t('exams.resultGrade')} hint={t('exams.gradeHint')}>
             <Input
               value={grade}
               inputMode="decimal"
               placeholder={t('exams.gradePlaceholder')}
+              aria-invalid={gradeInvalid || passInvalid}
               onChange={(event) => setGrade(event.target.value)}
             />
+            {gradeInvalid || passInvalid ? (
+              <p className="mt-1.5 text-[10.5px] text-rose">
+                {gradeInvalid ? t('exams.gradeInvalid') : t('exams.gradePassError')}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[10px] text-faint">{t('exams.gradeScale')}</p>
+            )}
           </Field>
         ) : null}
       </div>
@@ -1231,7 +1244,7 @@ function ExamResultDialog({ examKey }: { examKey: string }) {
         <Button variant="ghost" onClick={closeDialog}>
           {t('common.cancel')}
         </Button>
-        <Button variant="primary" onClick={save}>
+        <Button variant="primary" onClick={save} disabled={!canSave}>
           {t('common.save')}
         </Button>
       </ModalFooter>

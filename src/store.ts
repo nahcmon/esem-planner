@@ -14,6 +14,7 @@ import type {
 } from './types'
 import { createSeedState } from './data/seed'
 import { defaultChecklist } from './lib/checklist'
+import { migratePersistedState, STORE_VERSION } from './lib/migrate'
 import { mergeStates } from './lib/share'
 
 const STORAGE_KEY = 'esem-planner:v1'
@@ -394,11 +395,13 @@ export const usePlanner = create<PlannerStore>()(
       },
 
       setExamStatus: (examKey, status, kind, grade) => {
-        const state = get()
-        const current = state.examStates[examKey] ?? emptyExamState(kind)
-        state.updateExam(examKey, kind, {
+        // A grade only makes sense for a result. Quick actions deliberately pass
+        // no grade, which clears a stale value from an earlier attempt.
+        const nextGrade = grade?.trim()
+        get().updateExam(examKey, kind, {
           status,
-          grade: status === 'passed' || status === 'failed' ? grade ?? current.grade : undefined,
+          grade:
+            status === 'passed' || status === 'failed' ? nextGrade || undefined : undefined,
         })
       },
 
@@ -437,7 +440,8 @@ export const usePlanner = create<PlannerStore>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 1,
+      version: STORE_VERSION,
+      migrate: (persistedState, version) => migratePersistedState(persistedState, version) as UserState,
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true)

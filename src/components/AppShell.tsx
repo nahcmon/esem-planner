@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
+  Award,
   BookOpen,
   CalendarDays,
   GraduationCap,
@@ -22,11 +23,12 @@ import { ProgressBar, GithubMark } from './ui'
 const REPO_URL = 'https://github.com/nahcmon/esem-planner'
 
 const NAV = [
-  { to: '/', key: 'nav.today', icon: LayoutDashboard, end: true, group: 'plan' },
-  { to: '/week', key: 'nav.week', icon: CalendarDays, end: false, group: 'plan' },
-  { to: '/modules', key: 'nav.modules', icon: BookOpen, end: false, group: 'study' },
-  { to: '/progress', key: 'nav.progress', icon: TrendingUp, end: false, group: 'study' },
-  { to: '/exams', key: 'nav.exams', icon: GraduationCap, end: false, group: 'study' },
+  { to: '/', key: 'nav.today', icon: LayoutDashboard, end: true, group: 'plan', mobile: true },
+  { to: '/week', key: 'nav.week', icon: CalendarDays, end: false, group: 'plan', mobile: false },
+  { to: '/grades', key: 'nav.grades', icon: Award, end: false, group: 'study', mobile: true },
+  { to: '/exams', key: 'nav.exams', icon: GraduationCap, end: false, group: 'study', mobile: true },
+  { to: '/modules', key: 'nav.modules', icon: BookOpen, end: false, group: 'study', mobile: true },
+  { to: '/progress', key: 'nav.progress', icon: TrendingUp, end: false, group: 'study', mobile: true },
 ] as const
 
 function Logo({ compact = false }: { compact?: boolean }) {
@@ -213,6 +215,13 @@ function MobileHeader() {
         <span className="mono hidden text-[9.5px] text-faint min-[380px]:inline">
           KW {isoWeek()} · {t('today.semesterWeek', { week, total: 17 })}
         </span>
+        <NavLink
+          to="/week"
+          aria-label={t('nav.week')}
+          className={cn('icon-button', pathname.startsWith('/week') && 'text-accent')}
+        >
+          <CalendarDays size={15} />
+        </NavLink>
         <button
           type="button"
           aria-label={t('share.title')}
@@ -239,7 +248,7 @@ function MobileNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-[#080a09]/94 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
       <div className="grid grid-cols-5">
-        {NAV.map((item) => {
+        {NAV.filter((item) => item.mobile).map((item) => {
           const active = isActive(pathname, item.to, item.end)
           return (
             <NavLink key={item.to} to={item.to} className="bottom-nav-item" data-active={active}>

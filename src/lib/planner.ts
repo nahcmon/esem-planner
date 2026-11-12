@@ -1,5 +1,6 @@
 import type {
   CustomTopic,
+  ExamState,
   Localized,
   ModuleDef,
   Occurrence,
@@ -8,6 +9,7 @@ import type {
   TopicStatus,
   UserState,
 } from '../types'
+import type { ExamDef } from '../data/curriculum'
 import {
   COMPONENT_BY_ID,
   CURRICULUM,
@@ -331,6 +333,188 @@ export function modulePassed(state: UserState, module: ModuleDef): boolean {
   const graded = module.examParts.filter((part) => part.graded !== false)
   if (!graded.length) return false
   return graded.every((part) => state.examStates[`${module.id}:${part.id}`]?.status === 'passed')
+}
+
+/** Parses a German grade (1.0–5.0), accepting both comma and dot decimals. */
+export function parseGrade(value: string | null | undefined): number | null {
+  if (value == null) return null
+  const match = value.trim().match(/^([1-5])(?:[.,](\d))?$/)
+  if (!match) return null
+  const grade = Number(`${match[1]}.${match[2] ?? '0'}`)
+  return grade >= 1 && grade <= 5 ? Math.round(grade * 10) / 10 : null
+}
+
+export function formatGrade(value: number | null | undefined, lang: 'de' | 'en'): string {
+  if (value == null || !Number.isFinite(value)) return '–'
+  return value.toFixed(1).replace('.', lang === 'de' ? ',' : '.')
+}
+
+export const GRADE_BANDS = [
+  { id: '1', min: 1, max: 1.99 },
+  { id: '2', min: 2, max: 2.99 },
+  { id: '3', min: 3, max: 3.99 },
+  { id: '4', min: 4, max: 4 },
+] as const
+
+export interface ModuleGrade {
+  module: ModuleDef
+  average: number | null
+  gradedExams: number
+  passedExams: number
+  failedExams: number
+  openExams: number
+  passed: boolean
+}
+
+export function moduleGrade(state: UserState, module: ModuleDef): ModuleGrade {
+  let weighted = 0
+  let weight = 0
+  let gradedExams = 0
+  let passedExams = 0
+  let failedExams = 0
+  let openExams = 0
+
+  for (const part of module.examParts) {
+    if (part.graded === false) continue
+    const examState = state.examStates[`${module.id}:${part.id}`]
+    if (examState?.status === 'passed') {
+      passedExams += 1
+      const grade = parseGrade(examState.grade)
+      if (grade !== null && grade <= 4) {
+        const partWeight = part.weight ?? 1
+        weighted += grade * partWeight
+        weight += partWeight
+        gradedExams += 1
+      }
+    } else if (examState?.status === 'failed') {
+      failedExams += 1
+    } else {
+      openExams += 1
+    }
+  }
+
+  return {
+    module,
+    average: weight ? weighted / weight : null,
+    gradedExams,
+    passedExams,
+    failedExams,
+    openExams,
+    passed: modulePassed(state, module),
+  }
+}
+
+export interface GradeStats {
+  average: number | null
+  gradedEcts: number
+  passedEcts: number
+  gradedExams: number
+  passedExams: number
+  failedExams: number
+  openExams: number
+  modules: ModuleGrade[]
+  distribution: Array<(typeof GRADE_BANDS)[number] & { count: number }>
+}
+
+export function gradeStats(state: UserState, semester?: number): GradeStats {
+  const modules = CURRICULUM.filter(
+    (module) => semester === undefined || module.semester === semester,
+  )
+  const moduleGrades = modules.map((module) => moduleGrade(state, module))
+  const distribution = GRADE_BANDS.map((band) => ({ ...band, count: 0 }))
+  let gradedExams = 0
+  let passedExams = 0
+  let failedExams = 0
+  let openExams = 0
+
+  for (const exam of EXAM_DEFS) {
+    if (semester !== undefined && exam.semester !== semester) continue
+    if (exam.graded === false) continue
+    const examState = state.examStates[exam.key]
+    if (examState?.status === 'passed') {
+      passedExams += 1
+      const grade = parseGrade(examState.grade)
+      if (grade !== null && grade <= 4) {
+        gradedExams += 1
+        const band = distribution.find((item) => grade >= item.min && grade <= item.max)
+        if (band) band.count += 1
+      }
+    } else if (examState?.status === 'failed') {
+      failedExams += 1
+    } else {
+      openExams += 1
+    }
+  }
+
+  const gradedModules = moduleGrades.filter((item) => item.average !== null)
+  const gradedEcts = gradedModules.reduce((sum, item) => sum + item.module.ects, 0)
+  const weighted = gradedModules.reduce(
+    (sum, item) => sum + (item.average ?? 0) * item.module.ects,
+    0,
+  )
+
+  return {
+    average: gradedEcts ? weighted / gradedEcts : null,
+    gradedEcts,
+    passedEcts: moduleGrades
+      .filter((item) => item.passed)
+      .reduce((sum, item) => sum + item.module.ects, 0),
+    gradedExams,
+    passedExams,
+    failedExams,
+    openExams,
+    modules: moduleGrades,
+    distribution,
+  }
+}
+
+export interface ExamResult {
+  exam: ExamDef
+  state: ExamState
+  grade: number | null
+}
+
+export function recentExamResults(
+  state: UserState,
+  limit = 6,
+  semester?: number,
+): ExamResult[] {
+  return EXAM_DEFS.filter(
+    (exam) =>
+      (semester === undefined || exam.semester === semester) &&
+      (state.examStates[exam.key]?.status === 'passed' ||
+        state.examStates[exam.key]?.status === 'failed'),
+  )
+    .map((exam) => {
+      const examState = state.examStates[exam.key]!
+      return { exam, state: examState, grade: parseGrade(examState.grade) }
+    })
+    .sort((a, b) => {
+      const updated = (b.state.updatedAt ?? 0) - (a.state.updatedAt ?? 0)
+      if (updated !== 0) return updated
+      return (b.state.date ?? '').localeCompare(a.state.date ?? '')
+    })
+    .slice(0, limit)
+}
+
+export function upcomingExams(state: UserState, limit = 4, semester?: number): ExamResult[] {
+  const today = todayISO()
+  return EXAM_DEFS.filter(
+    (exam) =>
+      (semester === undefined || exam.semester === semester) &&
+      state.examStates[exam.key]?.date &&
+      state.examStates[exam.key]!.date! >= today &&
+      state.examStates[exam.key]?.status !== 'passed',
+  )
+    .sort((a, b) =>
+      (state.examStates[a.key]?.date ?? '').localeCompare(state.examStates[b.key]?.date ?? ''),
+    )
+    .slice(0, limit)
+    .map((exam) => ({
+      exam,
+      state: state.examStates[exam.key]!,
+      grade: parseGrade(state.examStates[exam.key]?.grade),
+    }))
 }
 
 export function overallStats(state: UserState) {

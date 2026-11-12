@@ -23,7 +23,7 @@ function seedModuleStates(): Record<string, ModuleState> {
         status: module.semester === 1 ? 'active' : 'planned',
         note:
           module.id === 'G2'
-            ? 'Online-Physik – Termine werden häufig kurzfristig verschoben.'
+            ? 'Online-Physik über Teams – Termine werden häufig kurzfristig verschoben.'
             : module.id === 'G5'
               ? 'Fester Mittwochstermin: 15:30–17:00 Uhr.'
               : '',
@@ -86,18 +86,18 @@ function seedTopicStates(): Record<string, TopicState> {
   )
 }
 
-function seedSessions(): SessionTemplate[] {
+export function createSeedSessions(): SessionTemplate[] {
   const base = now()
   const session = (
     id: string,
     componentId: string,
-    kind: SessionTemplate['kind'],
     day: number,
     start: string,
     end: string,
-    online = false,
+    room?: string,
     note?: string,
     noteEn?: string,
+    kind: SessionTemplate['kind'] = 'lecture',
   ): SessionTemplate => ({
     id,
     componentId,
@@ -105,8 +105,8 @@ function seedSessions(): SessionTemplate[] {
     day,
     start,
     end,
-    online,
-    room: online ? undefined : 'Campus Künzelsau',
+    online: !room,
+    room,
     note,
     noteEn,
     createdAt: base,
@@ -115,79 +115,35 @@ function seedSessions(): SessionTemplate[] {
   })
 
   return [
-    session(
-      'ses-math1-mon',
-      'math1',
-      'lecture',
-      1,
-      '08:15',
-      '09:45',
-      false,
-      'Raum und offizielle Zeit im StarPlan prüfen.',
-      'Check room and official time in StarPlan.',
-    ),
-    session('ses-ret-thermal-mon', 'ret-thermal', 'lecture', 1, '10:00', '11:30'),
-    session(
-      'ses-physics-mon',
-      'physics',
-      'lecture',
-      1,
-      '14:00',
-      '15:30',
-      true,
-      'Online-Physik – Termine werden häufig kurzfristig verschoben.',
-      'Online physics – sessions are frequently rescheduled.',
-    ),
-    session('ses-et1-tue', 'et1', 'lecture', 2, '08:15', '09:45'),
-    session('ses-mech1-tue', 'mech1', 'lecture', 2, '10:00', '11:30'),
-    session('ses-math1-tue', 'math1', 'exercise', 2, '14:00', '15:30'),
-    session(
-      'ses-study-math',
-      'math1',
-      'study',
-      2,
-      '17:00',
-      '18:30',
-      false,
-      'Freiwilliger Lernblock.',
-      'Optional study block.',
-    ),
-    session('ses-ret-pv-wed', 'ret-pv', 'lecture', 3, '08:15', '09:45'),
-    session('ses-et1-wed', 'et1', 'exercise', 3, '10:00', '11:30'),
+    session('ses-mech1-mon', 'mech1', 1, '11:30', '13:00', 'KE104'),
+    session('ses-ret-thermal-mon', 'ret-thermal', 1, '14:00', '15:30', 'KE012'),
+    session('ses-math1-tue-1', 'math1', 2, '09:45', '11:15', 'KE104'),
+    session('ses-math1-tue-2', 'math1', 2, '11:30', '13:00', 'KE104'),
+    session('ses-et1-tue-1', 'et1', 2, '14:00', '15:30', 'KE012'),
+    session('ses-et1-tue-2', 'et1', 2, '15:45', '17:15', 'KE012'),
     session(
       'ses-spanish-wed',
       'spanish1',
-      'language',
       3,
       '15:30',
       '17:00',
-      false,
+      'KE104',
       'Fester Termin: Mittwoch 15:30–17:00 Uhr.',
       'Fixed session: Wednesday 15:30–17:00.',
+      'language',
     ),
     session(
       'ses-physics-thu',
       'physics',
-      'exercise',
       4,
-      '10:00',
-      '11:30',
-      true,
-      'Online-Physik – Termine werden häufig kurzfristig verschoben.',
-      'Online physics – sessions are frequently rescheduled.',
+      '09:45',
+      '13:00',
+      undefined,
+      'Online über Microsoft Teams – Termine werden häufig kurzfristig verschoben.',
+      'Online via Microsoft Teams – sessions are frequently rescheduled.',
     ),
-    session(
-      'ses-study-physics',
-      'physics',
-      'study',
-      4,
-      '16:00',
-      '17:30',
-      false,
-      'Freiwilliger Lernblock.',
-      'Optional study block.',
-    ),
-    session('ses-math1-fri', 'math1', 'lecture', 5, '08:15', '09:45'),
+    session('ses-ret-pv-thu', 'ret-pv', 4, '14:00', '15:30', 'KE012'),
+    session('ses-math1-fri', 'math1', 5, '11:30', '13:00', 'KC135'),
   ]
 }
 
@@ -383,7 +339,7 @@ function seedSessionRecords(): Record<string, SessionRecord> {
   const lastMonday = addDaysISO(monday, -7)
   const lastThursday = addDaysISO(lastMonday, 3)
   return {
-    [`ses-math1-mon@${lastMonday}`]: { done: true },
+    [`ses-mech1-mon@${lastMonday}`]: { done: true },
     [`ses-physics-thu@${lastThursday}`]: { done: true },
   }
 }
@@ -415,7 +371,7 @@ export function createSeedState(): UserState {
     topicStates: seedTopicStates(),
     customTopics: [] as CustomTopic[],
     tasks: seedTasks(),
-    sessions: seedSessions(),
+    sessions: createSeedSessions(),
     sessionChanges: [] as SessionChange[],
     sessionRecords: seedSessionRecords(),
     examStates: seedExamStates(),
