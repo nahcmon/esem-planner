@@ -871,13 +871,33 @@ function ShareDialog() {
     return `${base}#share=${encodeQrShare(store)}`
   }, [store])
 
+  /**
+   * QR modules plus the 4-module quiet zone. The preview is sized to an exact
+   * integer multiple of the module count, so every module maps to whole CSS
+   * pixels and phone cameras get a crisp, regular grid.
+   */
+  const qrSpec = useMemo(() => {
+    try {
+      const modules = QRCode.create(qrLink, { errorCorrectionLevel: 'L' }).modules.size
+      const total = modules + 8
+      const scale = Math.max(1, Math.floor(296 / total))
+      return { total, size: scale * total }
+    } catch {
+      return null
+    }
+  }, [qrLink])
+
   useEffect(() => {
     let cancelled = false
     setQr(null)
     setQrError(false)
+    if (!qrSpec) {
+      setQrError(true)
+      return
+    }
     QRCode.toDataURL(qrLink, {
-      margin: 1,
-      width: 420,
+      margin: 4,
+      scale: 8,
       errorCorrectionLevel: 'L',
       color: { dark: '#0b0f0c', light: '#f1f5ec' },
     })
@@ -890,7 +910,7 @@ function ShareDialog() {
     return () => {
       cancelled = true
     }
-  }, [qrLink])
+  }, [qrLink, qrSpec])
 
   const copyLink = async () => {
     const ok = await copyText(link)
@@ -952,7 +972,7 @@ function ShareDialog() {
         description={t('share.intro')}
         onClose={closeDialog}
       />
-      <div className="modal-body grid gap-6 md:grid-cols-[1fr_260px]">
+      <div className="modal-body grid gap-6 md:grid-cols-[1fr_330px]">
         <div className="order-2 space-y-5 md:order-1">
           <div className="flex flex-wrap items-center gap-2">
             <Segmented
@@ -1030,16 +1050,19 @@ function ShareDialog() {
           </p>
         </div>
 
-        <div className="order-1 flex flex-col items-center gap-3 rounded-xl border border-line bg-surface/60 p-4 md:order-2">
+        <div className="order-1 flex flex-col items-center gap-3 rounded-xl border border-line bg-surface/60 p-3 md:order-2 sm:p-4">
           <div className="flex items-center gap-2 self-start">
             <QrCode size={14} className="text-accent" />
             <span className="eyebrow">{t('share.qrTitle')}</span>
           </div>
-          {qr ? (
+          {qr && qrSpec ? (
             <img
               src={qr}
               alt={t('share.qrTitle')}
-              className="aspect-square w-full max-w-[196px] rounded-lg border border-line bg-[#f1f5ec] p-2"
+              width={qrSpec.size}
+              height={qrSpec.size}
+              style={{ width: qrSpec.size, height: qrSpec.size, imageRendering: 'pixelated' }}
+              className="max-w-full rounded-lg border border-line bg-[#f1f5ec]"
             />
           ) : qrError ? (
             <div className="flex aspect-square w-full max-w-[196px] flex-col items-center justify-center gap-2 rounded-lg border border-amber/20 bg-amber/[0.04] p-4 text-center">

@@ -140,7 +140,7 @@ export function createQrSnapshot(state: UserState): QrSnapshot {
       i: task.id,
       c: task.componentId,
       t: task.title,
-      ...(task.titleEn ? { e: task.titleEn } : {}),
+      ...(task.titleEn && task.titleEn !== task.title ? { e: task.titleEn } : {}),
       k: task.kind,
       ...(task.due ? { d: task.due } : {}),
       ...(task.start ? { s: task.start } : {}),
@@ -152,7 +152,7 @@ export function createQrSnapshot(state: UserState): QrSnapshot {
     i: topic.id,
     c: topic.componentId,
     t: topic.title,
-    ...(topic.titleEn ? { e: topic.titleEn } : {}),
+    ...(topic.titleEn && topic.titleEn !== topic.title ? { e: topic.titleEn } : {}),
     s: topic.status,
     p: topic.priority,
   }))
